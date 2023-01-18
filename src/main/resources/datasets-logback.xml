@@ -21,4 +21,7 @@
     <logger name="org.nrg.xnatx.plugins.datasets.messaging" additivity="false" level="INFO">
         <appender-ref ref="datasets"/>
     </logger>
+    <logger name="org.nrg.xnatx.plugins.datasets.services" additivity="false" level="DEBUG">
+        <appender-ref ref="datasets"/>
+    </logger>
 </configuration>

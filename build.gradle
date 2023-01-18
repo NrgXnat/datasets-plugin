@@ -9,34 +9,23 @@
 
 buildscript {
     ext {
-        vXnat = "1.8.1"
-    }
-    repositories {
-        mavenLocal()
-        maven { url "https://plugins.gradle.org/m2" }
-        mavenCentral()
-        maven { url "https://nrgxnat.jfrog.io/nrgxnat/libs-release" }
-        maven { url "https://nrgxnat.jfrog.io/nrgxnat/libs-snapshot" }
-    }
-    dependencies {
-        classpath "com.palantir.gradle.gitversion:gradle-git-version:0.12.1"
-        classpath "gradle.plugin.com.dorongold.plugins:task-tree:1.5"
-        classpath "io.franzbecker:gradle-lombok:4.0.0"
-        classpath "io.spring.gradle:dependency-management-plugin:1.0.11.RELEASE"
-        classpath "org.nrg.xnat.build:xnat-data-builder:${vXnat}"
+        vXnat = "1.8.7-SNAPSHOT"
     }
 }
 
-apply plugin: "eclipse"
-apply plugin: "idea"
-apply plugin: "jacoco"
-apply plugin: "java"
-apply plugin: "maven-publish"
-apply plugin: "com.dorongold.task-tree"
-apply plugin: "com.palantir.git-version"
-apply plugin: "io.spring.dependency-management"
-apply plugin: "io.franzbecker.gradle-lombok"
-apply plugin: "org.nrg.xnat.build.xnat-data-builder"
+plugins {
+    id "eclipse"
+    id "idea"
+    id "jacoco"
+    id "java"
+    id "maven-publish"
+    id "com.dorongold.task-tree" version "1.5"
+    id "com.palantir.git-version" version "0.12.1"
+    id "io.franzbecker.gradle-lombok" version "5.0.0"
+    id "io.spring.dependency-management" version "1.1.0"
+    id "net.linguica.maven-settings" version "0.5"
+    id "org.nrg.xnat.build.xnat-data-builder" version "${vXnat}"
+}
 
 group "org.nrg.xnatx.plugins"
 version "1.0.3-SNAPSHOT"
@@ -49,9 +38,6 @@ repositories {
     maven { url "https://nrgxnat.jfrog.io/nrgxnat/libs-snapshot" }
     mavenCentral()
 }
-
-sourceCompatibility = 8
-targetCompatibility = 8
 
 dependencyManagement {
     imports {
@@ -91,13 +77,19 @@ dependencies {
     }
     implementation "io.springfox:springfox-swagger2"
 
-    compileOnly "log4j:log4j"
+    implementation "org.slf4j:slf4j-api"
+    implementation "org.slf4j:log4j-over-slf4j"
 
     testImplementation "org.nrg:test"
     testImplementation "org.springframework:spring-test"
     testImplementation "junit:junit"
     testImplementation "org.assertj:assertj-core"
-    testImplementation "log4j:log4j"
+
+    testRuntimeOnly "ch.qos.logback:logback-classic"
+}
+
+configurations {
+    implementation.extendsFrom(implementAndInclude)
 }
 
 lombok {
@@ -112,9 +104,9 @@ jacoco {
 jacocoTestReport {
     dependsOn test
     reports {
-        xml.enabled = false
-        csv.enabled = false
-        html.destination file("${buildDir}/jacocoHtml")
+        xml.required = false
+        csv.required = false
+        html.required = true
     }
 }
 
@@ -169,24 +161,44 @@ sourceSets {
     }
 }
 
-task sourceJar(type: Jar, dependsOn: classes) {
-    classifier "sources"
-    manifest {
-        from gitManifest
-    }
-    from sourceSets.main.allSource
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+    withSourcesJar()
+    withJavadocJar()
 }
 
-task javadocJar(type: Jar) {
-    classifier "javadoc"
-    manifest {
-        from gitManifest
-    }
-    from javadoc.destinationDir
+tasks.withType(Javadoc).configureEach {
+    failOnError = false
+    options.quiet()
 }
 
 jar {
-    dependsOn test, sourceJar, javadocJar
+    doLast {
+        throw new GradleException("ERROR: You should run xnatPluginJar instead of jar task for this plugin")
+    }
+}
+
+task xnatPluginJar(type: Jar) {
+    dependsOn test, sourcesJar, javadocJar
+    zip64 true
+    archiveClassifier.set "xpl"
+    // files and folders with "-dev" or "--xx" in their name
+    // will not be in the compiled jar
+    exclude "**/resources/**/*-dev**"
+    exclude "**/resources/**/*--xx**"
+    from {
+        configurations.implementAndInclude.collect { it.isDirectory() ? it : zipTree(it) }
+    } {
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
+    }
+    with jar
+}
+
+tasks.withType(Jar).configureEach {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         from gitManifest
     }
@@ -198,7 +210,7 @@ publishing {
             from components.java
 
             artifacts {
-                artifact sourceJar
+                artifact sourcesJar
                 artifact javadocJar
             }
 
@@ -237,17 +249,9 @@ publishing {
     }
     repositories {
         maven {
-            credentials {
-                // These properties must be set in the ~/.gradle/gradle.properties file or passed on the Gradle command
-                // line in the form -PrepoUsername=foo -PrepoPassword=bar.
-                username propertyWithDefault("repoUsername", "username")
-                password propertyWithDefault("repoPassword", "password")
-            }
-            url "https://nrgxnat.jfrog.io/nrgxnat/libs-${project.version.endsWith("-SNAPSHOT") ? "snapshot" : "release"}-local"
+            url "https://nrgxnat.jfrog.io/nrgxnat/libs-${project.version.endsWith("-SNAPSHOT") ? "snapshot" : "release"}"
+            // The value for name must match <id> in ~/.m2/settings.xml
+            name = "XNAT_Artifactory"
         }
     }
-}
-
-def propertyWithDefault(String name, Object value) {
-    hasProperty(name) ? property(name) : value
 }
