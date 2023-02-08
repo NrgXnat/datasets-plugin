@@ -60,6 +60,7 @@ dependencies {
     implementation("org.nrg.xdat:core") {
         transitive = false
     }
+    implementation "org.nrg:mail"
     implementation "org.nrg:prefs"
     implementation "org.nrg:framework"
 
@@ -179,7 +180,7 @@ jar {
     }
 }
 
-task xnatPluginJar(type: Jar) {
+tasks.register('xnatPluginJar', Jar) {
     dependsOn test, sourcesJar, javadocJar
     zip64 true
     archiveClassifier.set "xpl"
