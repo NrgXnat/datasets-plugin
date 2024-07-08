@@ -1,3 +1,0 @@
-<!-- BEGIN META-INF/resources/templates/screens/header/datasetStyle.vm -->
-<link rel="stylesheet" href="$content.getURI("/style/dataset-customizations.css")" />
-<!-- END META-INF/resources/templates/screens/header/datasetStyle.vm -->
