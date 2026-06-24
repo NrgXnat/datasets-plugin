@@ -11,17 +11,6 @@ buildscript {
     ext {
         vXnat = "1.10.1-SNAPSHOT"
     }
-    repositories {
-        mavenLocal()
-        maven { url "https://nrgxnat.jfrog.io/nrgxnat/libs-release" }
-        maven { url "https://nrgxnat.jfrog.io/nrgxnat/libs-snapshot" }
-        mavenCentral()
-    }
-    dependencies {
-        // xnat-data-builder needs core XNAT schemas (xnat.xsd) on its classpath to resolve
-        // xs:import in plugin-local schemas. xnat-web bundles the core schemas in monorepo 1.10+.
-        classpath("org.nrg.xnat:web:${vXnat}") { transitive = false }
-    }
 }
 
 plugins {
