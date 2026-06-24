@@ -19,8 +19,8 @@ buildscript {
     }
     dependencies {
         // xnat-data-builder needs core XNAT schemas (xnat.xsd) on its classpath to resolve
-        // xs:import in plugin-local schemas
-        classpath "org.nrg.xnat:xnat-data-models:${vXnat}"
+        // xs:import in plugin-local schemas. xnat-web bundles the core schemas in monorepo 1.10+.
+        classpath "org.nrg.xnat:web:${vXnat}"
     }
 }
 
