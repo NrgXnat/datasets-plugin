@@ -9,7 +9,7 @@
 
 buildscript {
     ext {
-        vXnat = "1.8.7-SNAPSHOT"
+        vXnat = "1.10.1-SNAPSHOT"
     }
 }
 
@@ -20,10 +20,9 @@ plugins {
     id "java"
     id "maven-publish"
     id "com.dorongold.task-tree" version "1.5"
-    id "com.palantir.git-version" version "0.12.1"
+    id "com.palantir.git-version" version "3.0.0"
     id "io.franzbecker.gradle-lombok" version "5.0.0"
-    id "io.spring.dependency-management" version "1.1.0"
-    id "net.linguica.maven-settings" version "0.5"
+    id "io.spring.dependency-management" version "1.1.7"
     id "org.nrg.xnat.build.xnat-data-builder" version "${vXnat}"
 }
 
@@ -54,9 +53,7 @@ dependencies {
     implementation("org.nrg.xnat:web") {
         transitive = false
     }
-    implementation("org.nrg.xnat:xnat-data-models") {
-        transitive = false
-    }
+    // xnat-data-models merged into xnat-web in monorepo 1.10
     implementation("org.nrg.xdat:core") {
         transitive = false
     }
@@ -94,12 +91,12 @@ configurations {
 }
 
 lombok {
-    version = dependencyManagement.importedProperties["lombok.version"] as String
-    sha256 = dependencyManagement.importedProperties["lombok.checksum"] as String
+    version = "1.18.34"
+    sha256 = "1ea5ad6c6afcff902d75072b2aaa6695585aebee9f12127e15c0036ba95d2918"
 }
 
 jacoco {
-    toolVersion = dependencyManagement.importedProperties["jacoco.version"]
+    toolVersion = "0.8.12"
 }
 
 jacocoTestReport {
@@ -136,19 +133,19 @@ try {
     isCleanTag = false
 }
 
-ext.gitManifest = manifest {
-    attributes "Application-Name": project.description,
-            "Build-Date": buildDate,
-            "Build-Number": buildNumber,
-            "Implementation-Version": project.version,
-            "Implementation-Sha": gitHash,
-            "Implementation-Sha-Full": gitHashFull,
-            "Implementation-Commit": commitDistance,
-            "Implementation-LastTag": lastTag,
-            "Implementation-Branch": branchName,
-            "Implementation-CleanTag": isCleanTag,
-            "Implementation-Dirty": isDirty
-}
+ext.gitManifestAttrs = [
+        "Application-Name"        : project.description,
+        "Build-Date"              : buildDate,
+        "Build-Number"            : buildNumber,
+        "Implementation-Version"  : project.version,
+        "Implementation-Sha"      : gitHash,
+        "Implementation-Sha-Full" : gitHashFull,
+        "Implementation-Commit"   : commitDistance,
+        "Implementation-LastTag"  : lastTag,
+        "Implementation-Branch"   : branchName,
+        "Implementation-CleanTag" : isCleanTag,
+        "Implementation-Dirty"    : isDirty
+]
 
 sourceSets {
     main {
@@ -163,8 +160,8 @@ sourceSets {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
     withSourcesJar()
     withJavadocJar()
 }
@@ -195,7 +192,7 @@ tasks.register('xnatPluginJar', Jar) {
 tasks.withType(Jar).configureEach {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
-        from gitManifest
+        attributes gitManifestAttrs
     }
 }
 
@@ -243,9 +240,17 @@ publishing {
     }
     repositories {
         maven {
-            url "https://nrgxnat.jfrog.io/nrgxnat/libs-${project.version.endsWith("-SNAPSHOT") ? "snapshot" : "release"}"
-            // The value for name must match <id> in ~/.m2/settings.xml
             name = "XNAT_Artifactory"
+            url = project.version.toString().endsWith("-SNAPSHOT")
+                ? "https://nrgxnat.jfrog.io/nrgxnat/libs-snapshot-local"
+                : "https://nrgxnat.jfrog.io/nrgxnat/libs-release-local"
+            // CI injects ORG_GRADLE_PROJECT_artifactoryUser/Token env vars (Gradle maps
+            // these to project properties). Local devs can set artifactoryUser/Token in
+            // ~/.gradle/gradle.properties. Mirrors monorepo's buildSrc convention.
+            credentials {
+                username = (project.findProperty("artifactoryUser")  ?: System.getenv("ARTIFACTORY_USER"))  ?: ""
+                password = (project.findProperty("artifactoryToken") ?: System.getenv("ARTIFACTORY_TOKEN")) ?: ""
+            }
         }
     }
 }
